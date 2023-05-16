@@ -550,6 +550,16 @@ def write_pin_files(
             )
             # If spec_id and charge in feature_set columns, use merge
             if all(c in feature_set.columns for c in on_cols):
+                complete_df = complete_df.dropna()
+                feature_set = feature_set.dropna()
+                
+                complete_df["charge"] = complete_df["charge"].astype(str)
+                feature_set["charge"] = feature_set["charge"].astype(str)
+                feature_set['charge'] = feature_set['charge'].apply(lambda x: x.replace('.0', ''))
+
+                complete_df["spec_id"] = complete_df["spec_id"].astype(str)
+                feature_set["spec_id"] = feature_set["spec_id"].astype(str)
+
                 complete_df = pd.merge(
                     complete_df, feature_set[cols_to_use], on=on_cols
                 )

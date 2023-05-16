@@ -4,6 +4,8 @@ import logging
 import os
 import re
 import csv
+import sys
+
 from typing import Dict, List, Optional, Tuple, Union
 
 import click
@@ -11,6 +13,8 @@ import numpy as np
 import pandas as pd
 
 from ms2rescore.peptide_record import PeptideRecord
+
+csv.field_size_limit(sys.maxsize)
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +84,7 @@ class ExtendedPsmAnnotationReportAccessor:
         return ';'.join(clean_prot_ids)
 
     def df_from_all_psms(all_psms):
-        all_algos = list(set([x[0] for y in [pd.DataFrame.ext_psm_ann_report._parse_algo_scores(psm['psm_attrs']['Algorithm Score']) for psm in all_psms.values()] for x in y ]))
+        #all_algos = list(set([x[0] for y in [pd.DataFrame.ext_psm_ann_report._parse_algo_scores(psm['psm_attrs']['Algorithm Score']) for psm in all_psms.values()] for x in y ]))
         df = []
         for spec_id, psm in all_psms.items():
             psm_attrs = psm['psm_attrs']
@@ -91,9 +95,9 @@ class ExtendedPsmAnnotationReportAccessor:
             row = psm_attrs
             row.update({
                 'Proteins':pd.DataFrame.ext_psm_ann_report._cleanup_protein_ids(psm_attrs['Protein(s)']), # these are a weird way to call a function?
-                'Mass':psm_attrs['m/z']*psm_attrs['Identification Charge'],
+                'Mass':psm_attrs['m/z']*int(psm_attrs['Identification Charge']),
                 'Length': len(psm_attrs['Sequence']),
-                'Missed cleavages': psm_attrs['Sequence'][:-1].count('K') + psm_attrs['Sequence'][:-1].count('R'), # TODO get info from report? (update custom report)..
+                'Missed cleavages': psm_attrs['Missed Cleavages'],
                 'Intensities':';'.join([str(p['Intensity']) for p in peak_anns]),
                 'm/z Errors (Da)':';'.join([str(p['m/z Error (Da)']) for p in peak_anns]),
                 'Matches':';'.join([p['Name'] for p in peak_anns]),
@@ -130,7 +134,7 @@ class ExtendedPsmAnnotationReportAccessor:
             'Rank':int,
             'Protein(s)':str,
             'Sequence':str,
-            'Missed Cleavages':str,
+            'Missed Cleavages':int,
             'Modified Sequence':str,
             'Variable Modifications':str,
             'Fixed Modifications':str,
@@ -143,7 +147,7 @@ class ExtendedPsmAnnotationReportAccessor:
             'Total Spectrum Intensity':float,
             'Intensity Coverage [%]':float,
             'Maximal Spectrum Intensity':float,
-            'Identification Charge':lambda x: int(x[:-1]),
+            'Identification Charge':lambda x: 'na' if not x.replace('+', '') else str(int(x.replace('+', ''))),
             'Theoretical Mass':float,
             'Precursor m/z Error [ppm]':float,
             'Precursor m/z Error [Da]':float,
@@ -384,6 +388,7 @@ class ExtendedPsmAnnotationReportAccessor:
         #df["charge"] = df["charge"].str.strip("+")
         df["protein_list"] = self._obj["Proteins"].str.split(";")
         df["charge"] = df["charge"].astype(str)
+        df["spec_id"] = df["spec_id"].astype(str)
         df["modifications"] = df["modifications"].apply(self._parse_modification)
         df["Label"] = df["Label"].apply(
             lambda x: 1 if x == 0 else (-1 if x == 1 else np.nan)
@@ -408,12 +413,12 @@ class ExtendedPsmAnnotationReportAccessor:
         logger.debug("Calculating search engine features...")
         
         spec_id = self._obj["Spectrum Title"].rename("spec_id")
-        charge = self._obj["Identification Charge"].rename("charge")
+        charge = self._obj["Measured Charge"].rename("charge")
         directly_copied = self._obj[[
             "Score",
             "Delta Confidence [%]",
             "RawModLocProb",
-            "Identification Charge",
+            "Measured Charge",
             "Mass",
             "Length",
             f"Precursor m/z Error [{self._mass_error_unit}]",
@@ -423,13 +428,13 @@ class ExtendedPsmAnnotationReportAccessor:
             "RawModLocProb": "RawModLocProb",
             "Length": "PepLen",
             f"Precursor m/z Error [{self._mass_error_unit}]": "dM",
-            "Identification Charge": "ChargeN",
+            "Measured Charge": "ChargeN",
             "Missed cleavages": "enzInt",
         })
 
         absdM = self._obj[f"Precursor m/z Error [{self._mass_error_unit}]"].abs().rename("absdM")
 
-        charges_encoded = pd.get_dummies(self._obj["Identification Charge"], prefix="Charge", prefix_sep='')
+        charges_encoded = pd.get_dummies(self._obj["Measured Charge"], prefix="Charge", prefix_sep='')
 
         top7_features = pd.DataFrame([
             self._calculate_top7_peak_features(i, md)

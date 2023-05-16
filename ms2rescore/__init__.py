@@ -12,7 +12,7 @@ from pandas.errors import EmptyDataError
 
 from ms2pip.ms2pipC import MS2PIP
 
-from ms2rescore import id_file_parser, plotting, rescore_core, setup_logging
+from ms2rescore import id_file_parser, rescore_core, setup_logging
 from ms2rescore._exceptions import MS2RescoreError
 from ms2rescore._version import __version__
 from ms2rescore.config_parser import parse_config
@@ -153,6 +153,7 @@ class MS2ReScore:
             num_cpu=num_cpu,
             add_retention_time=False,
             compute_correlations=False,
+            model_dir='/home/.ms2pip'
         )
         try:
             ms2pip.run()
@@ -201,7 +202,7 @@ class MS2ReScore:
             percolator_cmd = "percolator "
             percolator_cmd += f'{subname}.pin -m {subname}.pout -M {subname}.pout_dec -w {subname}.weights '
             for op, val in self.config["percolator"].items():
-                percolator_cmd += f'--{op} {val} '
+                percolator_cmd += f'-{op} {val} '
             percolator_cmd += ' -v 0\n'
 
             logger.info("Running Percolator: %s", percolator_cmd)
@@ -253,6 +254,7 @@ class MS2ReScore:
 
             # Only use plotting module when run_percolator is true
             if self.config["general"]["plotting"]:
+                pass # skip plotting, no need in CLI
                 logger.info("Generating Rescore plots")
 
                 plotting.PIN(

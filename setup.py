@@ -72,7 +72,7 @@ setup(
         "click>=7,<8",
         "cascade-config>=0.3.0,<2",
         "matplotlib>=3,<4",
-        "seaborn>=0.11",
+        #"seaborn>=0.11",
         "statsmodels>=0.12",
         "deeplc>=0.1.17",
     ],
